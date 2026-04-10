@@ -155,9 +155,11 @@ export default function App() {
 
   function confirmResponse() {
     const currentCaseId = generateId();
+    const normalizedRequesterName = meta.requesterName.trim();
+    const threadKey = normalizedRequesterName || `未入力-${currentCaseId}`;
     const caseRecord = {
       id: currentCaseId,
-      requesterName: meta.requesterName.trim(),
+      requesterName: normalizedRequesterName || "未入力",
       inquiry: inquiry.slice(0, 60) + (inquiry.length > 60 ? "…" : ""),
       fullInquiry: inquiry,
       meta,
@@ -173,12 +175,11 @@ export default function App() {
     setLastPublishedCase(caseRecord);
     setAllCases(c => [...c, caseRecord]);
     setInquiryThreads(prev => {
-      const requesterName = meta.requesterName.trim();
-      const index = prev.findIndex(t => t.requesterName === requesterName);
+      const index = prev.findIndex(t => t.requesterName === threadKey);
       if (index === -1) {
         const newThread = {
           id: "THREAD-" + Date.now().toString(36).toUpperCase(),
-          requesterName,
+          requesterName: threadKey,
           inquiries: [caseRecord],
           updatedAt: caseRecord.timestamp
         };
@@ -494,7 +495,7 @@ export default function App() {
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, gridColumn: "1 / -1" }}>
-                    問い合わせ者名（履歴統合キー）
+                    問い合わせ者名（任意）
                     <input
                       value={meta.requesterName}
                       onChange={e => setMeta({ ...meta, requesterName: e.target.value })}
@@ -559,13 +560,13 @@ export default function App() {
 
                 <div style={{ marginTop: 24, display: "flex", justifyContent: "space-between" }}>
                   <button onClick={() => setStep(0)} style={backBtnStyle}>← 戻る</button>
-                  <button disabled={!meta.requesterName.trim() || !meta.inquirer || !meta.org || meta.disabilities.length === 0}
+                  <button disabled={!meta.inquirer || !meta.org || meta.disabilities.length === 0}
                     onClick={() => { setStep(2); generateDraft(); }}
                     style={{
                       padding: "10px 28px", borderRadius: 8, border: "none",
-                      background: (meta.requesterName.trim() && meta.inquirer && meta.org && meta.disabilities.length > 0) ? "#2563eb" : "#cbd5e1",
+                      background: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "#2563eb" : "#cbd5e1",
                       color: "#fff", fontWeight: 700, fontSize: 13,
-                      cursor: (meta.requesterName.trim() && meta.inquirer && meta.org && meta.disabilities.length > 0) ? "pointer" : "default"
+                      cursor: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "pointer" : "default"
                     }}>次へ：AI回答生成 →</button>
                 </div>
               </div>

@@ -117,54 +117,34 @@ export default function App() {
   const [allCases, setAllCases] = useState([]);
   const textRef = useRef(null);
 
-  // ── AI generation via Claude API ──
+  // ── AI generation (Mock Simulation) ──
+  // 注意: ブラウザから直接Anthropic APIを叩くことはCORS制限で弾かれるため、
+  // プロトタイプ用に内容を自動生成（モック）する仕組みに置き換えています。
   async function generateDraft() {
     setLoading(true);
+    
+    // 重い処理を模倣（2秒待機）
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     const relevantKB = KNOWLEDGE_BASE.filter(
       kb => meta.disabilities.some(d => kb.disability === d) || meta.disabilities.length === 0
     );
-    const kbText = relevantKB.length > 0
-      ? relevantKB.map(kb => `【${kb.topic}】${kb.content}`).join("\n\n")
-      : KNOWLEDGE_BASE.map(kb => `【${kb.topic}】${kb.content}`).join("\n\n");
 
-    const systemPrompt = `あなたは慈恵医科大学アクセシビリティ支援チームのAIアシスタントです。
-以下のナレッジベースを最優先で参照し、相談者に寄り添いながら専門的な回答を作成してください。
+    let text = `【AIによる回答原案（デモ用シミュレーション）】\n\n本日はご相談ありがとうございます。${meta.inquirer}様のお問い合わせ内容につきまして、以下の通りご案内いたします。\n\n`;
 
-【ナレッジベース】
-${kbText}
-
-【回答ルール】
-1. ナレッジベースに該当情報がある場合、それを基に具体的なアドバイスを提供する
-2. 相談者属性: ${meta.inquirer || "不明"}、所属: ${meta.org || "不明"}
-3. 障害種別: ${meta.disabilities.join("・") || "未指定"}
-4. ICT習熟度: ${meta.skill}/5 — 習熟度に合わせて用語の難易度を調整する
-   - 1-2: 極力専門用語を避け、手順を細かく説明
-   - 3: 基本用語は使用可、適宜補足
-   - 4-5: 専門用語OK、効率的な説明
-5. 温かみのある丁寧な文体で、かつ根拠のある回答を心がける
-6. 該当するナレッジが不十分な場合は「※この領域は担当者による確認をお勧めします」と明記する
-7. 回答は400〜800文字程度にまとめる`;
-
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: `以下の相談に対する回答案を作成してください。\n\n【相談内容】\n${inquiry}` }]
-        })
+    if (relevantKB.length > 0) {
+      text += `ご指定の障害（${meta.disabilities.join("・")}）に対して、当チームのナレッジから以下の解決策を提案します。\n\n`;
+      relevantKB.forEach(kb => {
+        text += `■ ${kb.topic}\n${kb.content}\n\n`;
       });
-      const data = await res.json();
-      const text = data.content?.map(b => b.text || "").join("") || "回答の生成に失敗しました。";
-      setAiDraft(text);
-      setFinalResponse(text);
-      setHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
-    } catch (e) {
-      setAiDraft("APIエラー: " + e.message);
-      setFinalResponse("APIエラー: " + e.message);
+      text += `相談者様のICT習熟度（レベル${meta.skill}）に基づき、${meta.skill <= 2 ? "専門用語を避けた丁寧な操作説明" : "効率的な応用テクニック"}も併せて提供可能です。実際の操作にあたってご不明点があればいつでもお問い合わせください。`;
+    } else {
+      text += `申し訳ありません。現在のデータベースには、ご指定の条件に直接該当する有効な情報が登録されていません。\n\n※この領域は担当者による確認をお勧めします。`;
     }
+
+    setAiDraft(text);
+    setFinalResponse(text);
+    setHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
     setLoading(false);
   }
 

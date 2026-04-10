@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
 // ── Sample knowledge base (simulates RAG) ──
 const KNOWLEDGE_BASE = [
@@ -105,16 +105,21 @@ function Badge({ children, color = "#6366f1" }) {
 // ── Main App ──
 export default function App() {
   const [step, setStep] = useState(0);
-  const [caseId] = useState(generateId);
+  const [knowledgeBase, setKnowledgeBase] = useState(KNOWLEDGE_BASE);
   const [inquiry, setInquiry] = useState("");
-  const [meta, setMeta] = useState({ inquirer: "", org: "", disabilities: [], skill: 3 });
+  const [meta, setMeta] = useState({ requesterName: "", inquirer: "", org: "", disabilities: [], skill: 3 });
   const [aiDraft, setAiDraft] = useState("");
   const [finalResponse, setFinalResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [published, setPublished] = useState(false);
+  const [lastPublishedCase, setLastPublishedCase] = useState(null);
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState("admin"); // admin | public
+  const [adminMode, setAdminMode] = useState("workflow"); // workflow | knowledge | history
+  const [kbForm, setKbForm] = useState({ disability: "", topic: "", content: "" });
   const [allCases, setAllCases] = useState([]);
+  const [inquiryThreads, setInquiryThreads] = useState([]);
+  const [selectedThreadId, setSelectedThreadId] = useState("");
   const textRef = useRef(null);
 
   // ── AI generation (Mock Simulation) ──
@@ -126,7 +131,7 @@ export default function App() {
     // 重い処理を模倣（2秒待機）
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const relevantKB = KNOWLEDGE_BASE.filter(
+    const relevantKB = knowledgeBase.filter(
       kb => meta.disabilities.some(d => kb.disability === d) || meta.disabilities.length === 0
     );
 
@@ -149,19 +154,62 @@ export default function App() {
   }
 
   function confirmResponse() {
+    const currentCaseId = generateId();
+    const caseRecord = {
+      id: currentCaseId,
+      requesterName: meta.requesterName.trim(),
+      inquiry: inquiry.slice(0, 60) + (inquiry.length > 60 ? "…" : ""),
+      fullInquiry: inquiry,
+      meta,
+      finalResponse,
+      url: generateUrl(currentCaseId),
+      timestamp: new Date().toISOString()
+    };
+
     if (finalResponse !== aiDraft) {
       setHistory(h => [...h, { version: h.length + 1, text: finalResponse, editor: "担当者", timestamp: new Date().toISOString() }]);
     }
     setPublished(true);
-    setAllCases(c => [...c, {
-      id: caseId,
-      inquiry: inquiry.slice(0, 60) + (inquiry.length > 60 ? "…" : ""),
-      meta,
-      finalResponse,
-      url: generateUrl(caseId),
-      timestamp: new Date().toISOString()
-    }]);
+    setLastPublishedCase(caseRecord);
+    setAllCases(c => [...c, caseRecord]);
+    setInquiryThreads(prev => {
+      const requesterName = meta.requesterName.trim();
+      const index = prev.findIndex(t => t.requesterName === requesterName);
+      if (index === -1) {
+        const newThread = {
+          id: "THREAD-" + Date.now().toString(36).toUpperCase(),
+          requesterName,
+          inquiries: [caseRecord],
+          updatedAt: caseRecord.timestamp
+        };
+        setSelectedThreadId(newThread.id);
+        return [newThread, ...prev];
+      }
+      const updated = [...prev];
+      const target = updated[index];
+      const updatedThread = {
+        ...target,
+        inquiries: [...target.inquiries, caseRecord],
+        updatedAt: caseRecord.timestamp
+      };
+      updated[index] = updatedThread;
+      setSelectedThreadId(updatedThread.id);
+      updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      return updated;
+    });
     setStep(4);
+  }
+
+  function addKnowledge() {
+    if (!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()) return;
+    const newEntry = {
+      id: "KB-" + Date.now().toString(36).toUpperCase(),
+      disability: kbForm.disability,
+      topic: kbForm.topic.trim(),
+      content: kbForm.content.trim()
+    };
+    setKnowledgeBase(prev => [newEntry, ...prev]);
+    setKbForm({ disability: "", topic: "", content: "" });
   }
 
   // ── Escalation detection ──
@@ -219,7 +267,7 @@ export default function App() {
             boxShadow: "0 2px 12px rgba(0,0,0,.06)"
           }}>
             <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
-              案件番号: {caseId}
+              案件番号: {lastPublishedCase?.id}
             </div>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 20px", lineHeight: 1.6 }}>
               ご相談への回答
@@ -229,7 +277,7 @@ export default function App() {
               padding: "16px 20px", borderRadius: "0 8px 8px 0",
               fontSize: 14, lineHeight: 1.9, whiteSpace: "pre-wrap"
             }} role="main" aria-label="回答内容">
-              {finalResponse}
+              {lastPublishedCase?.finalResponse}
             </div>
             <div style={{ marginTop: 24, padding: "12px 16px", background: "#f8fafc", borderRadius: 8, fontSize: 11, color: "#64748b", lineHeight: 1.7 }}>
               <strong>慈恵医科大学 アクセシビリティ支援チーム</strong><br />
@@ -245,14 +293,167 @@ export default function App() {
       ) : (
         /* ── Admin panel ── */
         <div style={{ maxWidth: 780, margin: "24px auto", padding: "0 16px" }}>
-          <StepIndicator current={step} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <button onClick={() => setAdminMode("workflow")} style={{
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
+              background: adminMode === "workflow" ? "#2563eb" : "#fff",
+              color: adminMode === "workflow" ? "#fff" : "#334155",
+              fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>相談ワークフロー</button>
+            <button onClick={() => setAdminMode("knowledge")} style={{
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
+              background: adminMode === "knowledge" ? "#2563eb" : "#fff",
+              color: adminMode === "knowledge" ? "#fff" : "#334155",
+              fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>ナレッジ登録</button>
+            <button onClick={() => setAdminMode("history")} style={{
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
+              background: adminMode === "history" ? "#2563eb" : "#fff",
+              color: adminMode === "history" ? "#fff" : "#334155",
+              fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>履歴管理</button>
+          </div>
+
+          {adminMode === "workflow" && <StepIndicator current={step} />}
 
           <div style={{
             background: "#fff", borderRadius: 14, padding: "28px 32px",
             boxShadow: "0 1px 8px rgba(0,0,0,.05)", minHeight: 320
           }}>
+            {adminMode === "knowledge" && (
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#0f3460" }}>
+                  ナレッジベース入力
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
+                  相談対応で得られた知見を登録します。登録後はAI回答生成時の参照対象に含まれます。
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>
+                    障害種別
+                    <select
+                      value={kbForm.disability}
+                      onChange={e => setKbForm({ ...kbForm, disability: e.target.value })}
+                      style={selectStyle}
+                    >
+                      <option value="">選択してください</option>
+                      {DISABILITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>
+                    トピック
+                    <input
+                      value={kbForm.topic}
+                      onChange={e => setKbForm({ ...kbForm, topic: e.target.value })}
+                      placeholder="例：片手操作ジェスチャー"
+                      style={inputStyle}
+                    />
+                  </label>
+                </div>
+                <label style={{ display: "block", marginTop: 14, fontSize: 12, fontWeight: 600 }}>
+                  内容
+                  <textarea
+                    value={kbForm.content}
+                    onChange={e => setKbForm({ ...kbForm, content: e.target.value })}
+                    placeholder="活用方法、導入手順、注意点などを記載"
+                    style={{
+                      width: "100%", minHeight: 120, padding: 12, borderRadius: 8, boxSizing: "border-box",
+                      border: "1.5px solid #e2e8f0", marginTop: 6, fontSize: 13, lineHeight: 1.7, fontFamily: "inherit"
+                    }}
+                  />
+                </label>
+                <div style={{ marginTop: 14, textAlign: "right" }}>
+                  <button
+                    onClick={addKnowledge}
+                    disabled={!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()}
+                    style={{
+                      padding: "10px 24px", borderRadius: 8, border: "none",
+                      background: (kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? "#1a6b4a" : "#cbd5e1",
+                      color: "#fff", fontWeight: 700, fontSize: 13,
+                      cursor: (kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? "pointer" : "default"
+                    }}
+                  >+ ナレッジを追加</button>
+                </div>
+
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 10 }}>
+                    登録済みナレッジ（{knowledgeBase.length}件）
+                  </div>
+                  <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+                    {knowledgeBase.map(item => (
+                      <div key={item.id} style={{
+                        border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px",
+                        background: "#f8fafc"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 10, color: "#64748b" }}>{item.id}</span>
+                          <Badge color="#059669">{item.disability}</Badge>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{item.topic}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7 }}>
+                          {item.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {adminMode === "history" && (
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#0f3460" }}>
+                  問い合わせ履歴管理
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
+                  同一問い合わせ者の案件を1つの履歴に集約して表示します。
+                </p>
+                {inquiryThreads.length === 0 ? (
+                  <div style={{ padding: "20px 0", color: "#94a3b8", fontSize: 13 }}>
+                    まだ履歴はありません。相談を公開するとここに追加されます。
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, maxHeight: 360, overflowY: "auto" }}>
+                      {inquiryThreads.map(thread => (
+                        <button
+                          key={thread.id}
+                          onClick={() => setSelectedThreadId(thread.id)}
+                          style={{
+                            width: "100%", textAlign: "left", border: "none", background: selectedThreadId === thread.id ? "#eff6ff" : "#fff",
+                            borderBottom: "1px solid #f1f5f9", padding: "12px 12px", cursor: "pointer"
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{thread.requesterName}</div>
+                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                            {thread.inquiries.length}件 / 最終: {new Date(thread.updatedAt).toLocaleString("ja-JP")}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, maxHeight: 360, overflowY: "auto", background: "#f8fafc" }}>
+                      {(inquiryThreads.find(t => t.id === selectedThreadId) || inquiryThreads[0]).inquiries.map(item => (
+                        <div key={item.id} style={{ background: "#fff", borderRadius: 8, padding: 10, marginBottom: 8, border: "1px solid #e2e8f0" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#334155" }}>{item.id}</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(item.timestamp).toLocaleString("ja-JP")}</span>
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 12, color: "#334155", lineHeight: 1.6 }}>
+                            <strong>相談:</strong> {item.fullInquiry}
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+                            <strong>回答:</strong> {item.finalResponse.slice(0, 140)}{item.finalResponse.length > 140 ? "…" : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Step 0: Intake */}
-            {step === 0 && (
+            {adminMode === "workflow" && step === 0 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f3460" }}>
                   ① 相談内容の投入
@@ -286,12 +487,21 @@ export default function App() {
             )}
 
             {/* Step 1: Metadata */}
-            {step === 1 && (
+            {adminMode === "workflow" && step === 1 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f3460" }}>
                   ② 相談者の属性設定
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, gridColumn: "1 / -1" }}>
+                    問い合わせ者名（履歴統合キー）
+                    <input
+                      value={meta.requesterName}
+                      onChange={e => setMeta({ ...meta, requesterName: e.target.value })}
+                      placeholder="例：山田 花子"
+                      style={inputStyle}
+                    />
+                  </label>
                   <label style={{ fontSize: 12, fontWeight: 600 }}>
                     相談者タイプ
                     <select value={meta.inquirer} onChange={e => setMeta({ ...meta, inquirer: e.target.value })}
@@ -349,20 +559,20 @@ export default function App() {
 
                 <div style={{ marginTop: 24, display: "flex", justifyContent: "space-between" }}>
                   <button onClick={() => setStep(0)} style={backBtnStyle}>← 戻る</button>
-                  <button disabled={!meta.inquirer || !meta.org || meta.disabilities.length === 0}
+                  <button disabled={!meta.requesterName.trim() || !meta.inquirer || !meta.org || meta.disabilities.length === 0}
                     onClick={() => { setStep(2); generateDraft(); }}
                     style={{
                       padding: "10px 28px", borderRadius: 8, border: "none",
-                      background: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "#2563eb" : "#cbd5e1",
+                      background: (meta.requesterName.trim() && meta.inquirer && meta.org && meta.disabilities.length > 0) ? "#2563eb" : "#cbd5e1",
                       color: "#fff", fontWeight: 700, fontSize: 13,
-                      cursor: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "pointer" : "default"
+                      cursor: (meta.requesterName.trim() && meta.inquirer && meta.org && meta.disabilities.length > 0) ? "pointer" : "default"
                     }}>次へ：AI回答生成 →</button>
                 </div>
               </div>
             )}
 
             {/* Step 2: AI Draft */}
-            {step === 2 && (
+            {adminMode === "workflow" && step === 2 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#0f3460" }}>
                   ③ AI回答案の生成
@@ -417,7 +627,7 @@ export default function App() {
             )}
 
             {/* Step 3: Edit & Confirm */}
-            {step === 3 && (
+            {adminMode === "workflow" && step === 3 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#0f3460" }}>
                   ④ 回答の修正・確定
@@ -453,7 +663,7 @@ export default function App() {
             )}
 
             {/* Step 4: Published */}
-            {step === 4 && (
+            {adminMode === "workflow" && step === 4 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#1a6b4a" }}>
                   ✓ 公開・蓄積完了
@@ -514,7 +724,7 @@ export default function App() {
                 <button onClick={() => {
                   setStep(0); setInquiry(""); setAiDraft(""); setFinalResponse("");
                   setPublished(false); setHistory([]);
-                  setMeta({ inquirer: "", org: "", disabilities: [], skill: 3 });
+                  setMeta({ requesterName: "", inquirer: "", org: "", disabilities: [], skill: 3 });
                 }} style={{
                   padding: "10px 28px", borderRadius: 8, border: "none",
                   background: "#2563eb", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
@@ -554,6 +764,13 @@ const selectStyle = {
   display: "block", width: "100%", marginTop: 6, padding: "10px 12px",
   borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13,
   background: "#fff", color: "#1e293b", fontFamily: "inherit"
+};
+
+const inputStyle = {
+  display: "block", width: "100%", marginTop: 6, padding: "10px 12px",
+  borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13,
+  background: "#fff", color: "#1e293b", fontFamily: "inherit",
+  boxSizing: "border-box"
 };
 
 const backBtnStyle = {

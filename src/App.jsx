@@ -291,13 +291,37 @@ export default function App() {
 
   function addKnowledge() {
     if (!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()) return;
-    const newEntry = {
-      id: "KB-" + Date.now().toString(36).toUpperCase(),
-      disability: kbForm.disability,
-      topic: kbForm.topic.trim(),
-      content: kbForm.content.trim()
-    };
-    setKnowledgeBase(prev => [newEntry, ...prev]);
+    if (kbForm.editId) {
+      setKnowledgeBase(prev => prev.map(item =>
+        item.id === kbForm.editId
+          ? { ...item, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() }
+          : item
+      ));
+      setKbForm({ disability: "", topic: "", content: "" });
+    } else {
+      const newEntry = {
+        id: "KB-" + Date.now().toString(36).toUpperCase(),
+        disability: kbForm.disability,
+        topic: kbForm.topic.trim(),
+        content: kbForm.content.trim()
+      };
+      setKnowledgeBase(prev => [newEntry, ...prev]);
+      setKbForm({ disability: "", topic: "", content: "" });
+    }
+  }
+
+  function editKnowledge(item) {
+    setKbForm({ editId: item.id, disability: item.disability, topic: item.topic, content: item.content });
+  }
+
+  function deleteKnowledge(id) {
+    setKnowledgeBase(prev => prev.filter(item => item.id !== id));
+    if (kbForm.editId === id) {
+      setKbForm({ disability: "", topic: "", content: "" });
+    }
+  }
+
+  function cancelEdit() {
     setKbForm({ disability: "", topic: "", content: "" });
   }
 
@@ -444,12 +468,23 @@ export default function App() {
                     }}
                   />
                 </label>
-                <div style={{ marginTop: 14, textAlign: "right" }}>
+                {kbForm.editId && (
+                  <div style={{
+                    marginTop: 12, padding: "8px 12px", background: "#eff6ff",
+                    borderRadius: 8, fontSize: 11, color: "#2563eb", display: "flex", alignItems: "center", gap: 6
+                  }}>
+                    ✏️ 編集中: {kbForm.editId}
+                  </div>
+                )}
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  {kbForm.editId && (
+                    <button onClick={cancelEdit} style={backBtnStyle}>キャンセル</button>
+                  )}
                   <button
                     onClick={addKnowledge}
                     disabled={!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()}
                     style={(kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? glassSuccess : glassSuccessDisabled}
-                  >+ ナレッジを追加</button>
+                  >{kbForm.editId ? "✓ 更新" : "+ ナレッジを追加"}</button>
                 </div>
 
                 <div style={{ marginTop: 24 }}>
@@ -459,13 +494,25 @@ export default function App() {
                   <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
                     {knowledgeBase.map(item => (
                       <div key={item.id} style={{
-                        border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px",
-                        background: "#f8fafc"
+                        border: kbForm.editId === item.id ? "1.5px solid #2563eb" : "1px solid #e2e8f0",
+                        borderRadius: 8, padding: "10px 12px",
+                        background: kbForm.editId === item.id ? "#eff6ff" : "#f8fafc",
+                        transition: "all .2s"
                       }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                           <span style={{ fontSize: 10, color: "#64748b" }}>{item.id}</span>
                           <Badge color="#059669">{item.disability}</Badge>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{item.topic}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>{item.topic}</span>
+                          <button onClick={() => editKnowledge(item)} style={{
+                            ...glassBase, padding: "3px 10px", borderRadius: 8, fontSize: 11,
+                            background: "rgba(37,99,235,.08)", border: "1px solid rgba(37,99,235,.2)",
+                            color: "#2563eb",
+                          }}>編集</button>
+                          <button onClick={() => deleteKnowledge(item.id)} style={{
+                            ...glassBase, padding: "3px 10px", borderRadius: 8, fontSize: 11,
+                            background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)",
+                            color: "#dc2626",
+                          }}>削除</button>
                         </div>
                         <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7 }}>
                           {item.content}

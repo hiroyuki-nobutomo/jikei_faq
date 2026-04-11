@@ -102,6 +102,58 @@ function Badge({ children, color = "#6366f1" }) {
   );
 }
 
+// ── Demo completed cases ──
+const DEMO_CASES = [
+  {
+    id: "CASE-DEMO001",
+    requesterName: "田中 美咲",
+    inquiry: "母が脳卒中で右半身麻痺になり、タブレットを片手で操作する方法を教えてほしい",
+    fullInquiry: "母が脳卒中で右半身麻痺になりました。以前はiPadで家族とLINEをしていたのですが、右手が使えなくなり操作が難しくなっています。片手でタブレットを操作する方法はありますか？特にLINEでのメッセージ入力と写真の送受信ができるようになりたいです。",
+    meta: { requesterName: "田中 美咲", inquirer: "家族", org: "病院（回復期）", disabilities: ["運動機能重度障害"], skill: 3 },
+    finalResponse: "ご相談ありがとうございます。右半身麻痺の方のiPad操作について、以下の方法をご案内いたします。\n\n■ 片手操作のための設定\niPadの「設定」→「アクセシビリティ」→「タッチ」から、以下を有効にしてください。\n・AssistiveTouch: 画面上に仮想ホームボタンを表示し、複雑なジェスチャーを簡単な操作に置き換えられます\n・片手キーボード: キーボードを左寄せに配置し、左手だけでの入力を楽にします\n\n■ タブレットスタンドの活用\n片手操作には、角度調整可能なタブレットスタンドの使用を強くお勧めします。端末を固定することで、片手での安定した操作が可能になります。\n\n■ 音声入力の活用\nLINEのメッセージ入力には、キーボード上のマイクボタンから音声入力が利用できます。「Hey Siri、○○にLINEを送って」でも送信可能です。\n\n■ 写真の送受信\nLINEのカメラボタン→写真選択は片手でも操作しやすい設計です。撮影にはSiriを活用（「Hey Siri、写真を撮って」）する方法もあります。\n\nICT習熟度がレベル3とのことですので、基本操作は問題なく対応いただけると思います。スタンドの選定や具体的な設定手順でお困りの際は、お気軽にご相談ください。",
+    timestamp: "2025-04-08T10:30:00.000Z"
+  },
+  {
+    id: "CASE-DEMO002",
+    requesterName: "鈴木 健一",
+    inquiry: "ALS患者の意思伝達手段について、視線入力装置の導入を検討したい",
+    fullInquiry: "担当しているALS患者様（60代男性）の意思伝達手段について相談です。現在、わずかに眼球運動と瞬きが可能な状態です。視線入力装置の導入を検討していますが、具体的にどの製品が適しているか、また導入までの流れを教えていただけますか。補装具費支給制度の利用も考えています。",
+    meta: { requesterName: "鈴木 健一", inquirer: "OT（作業療法士）", org: "病院（療養期）", disabilities: ["運動機能重度障害", "発話困難"], skill: 4 },
+    finalResponse: "ご相談ありがとうございます。ALS患者様への視線入力装置導入について、以下の通りご案内いたします。\n\n■ 推奨される視線入力装置\n現在の身体機能（眼球運動・瞬き可能）から、以下の製品が候補となります。\n\n1. Tobii Dynavox PCEye 5\n  - Windows PCに接続して使用\n  - 高精度な視線追跡、頭部の微動にも対応\n  - 意思伝達ソフト「miyasuku」「OriHime eye」等と組み合わせ可能\n\n2. Tobii Dynavox I-Series\n  - 視線入力装置一体型のコミュニケーションデバイス\n  - 持ち運び可能で病室・自宅どちらでも利用可\n\n■ 導入の流れ\n①評価：眼球運動の安定性、最適な設置距離の確認（OT様にて実施）\n②デモ機の試用：販売代理店から2週間程度の貸出が可能です\n③キャリブレーション（視線調整）：10分程度、5〜9点の注視で完了\n④操作練習：習熟まで概ね2〜4週間を想定\n\n■ 補装具費支給制度について\n「重度障害者用意思伝達装置」として補装具費支給制度の対象となります。\n・自己負担：原則1割（所得に応じた上限あり）\n・申請先：お住まいの市区町村の障害福祉課\n・必要書類：医師の意見書、身体障害者手帳\n\nOT様のICT習熟度がレベル4とのことですので、導入後の設定・調整もスムーズに進められるかと思います。デモ機手配のご連絡先等、詳細が必要でしたらお知らせください。",
+    timestamp: "2025-04-09T14:15:00.000Z"
+  },
+  {
+    id: "CASE-DEMO003",
+    requesterName: "山本 裕子",
+    inquiry: "聴覚障害のある患者への診察時コミュニケーション支援ツールを知りたい",
+    fullInquiry: "外来診察で聴覚障害のある患者さんが増えています。筆談では時間がかかり、細かいニュアンスが伝わりにくいことがあります。診察場面で使える音声文字変換ツールやコミュニケーション支援アプリを教えてください。できれば医療用語にも対応しているものが望ましいです。",
+    meta: { requesterName: "山本 裕子", inquirer: "医師", org: "病院（急性期）", disabilities: ["聴覚障害"], skill: 2 },
+    finalResponse: "ご相談ありがとうございます。聴覚障害のある患者様との診察時コミュニケーション支援について、以下をご案内いたします。\n\n■ 推奨ツール\n\n1. UDトーク（最も推奨）\n  - 医療現場での導入実績が最も豊富な音声文字変換アプリ\n  - 医療用語辞書を搭載しており、専門用語の認識精度が高い\n  - iOS/Android対応、月額利用料なし（施設向けライセンスあり）\n  - 話した内容がリアルタイムで患者様のスマートフォンに表示されます\n\n2. Googleの「音声文字変換」アプリ（Android）\n  - 無料で利用可能、インストールするだけで即使用開始\n  - 一般的な会話には十分な精度ですが、医療専門用語はやや弱い\n\n3. Appleの「ライブキャプション」機能（iOS 16以降）\n  - iPhone/iPadの標準機能として利用可能\n  - 設定→アクセシビリティ→ライブキャプション で有効化\n\n■ 診察室での運用のコツ\n・静かな環境であるほど認識精度が向上します\n・医師はゆっくり明瞭に話すことを意識してください\n・認識ミスがないか、患者様に随時確認を取りながら進めてください\n・重要な説明（病名告知、手術説明等）は従来通り書面での補足を推奨します\n\nICT習熟度がレベル2とのことですので、まずはUDトークの基本操作（アプリ起動→話すだけ）から始められることをお勧めします。操作方法のレクチャーが必要でしたら、お気軽にお申し付けください。",
+    timestamp: "2025-04-10T09:45:00.000Z"
+  }
+];
+
+const DEMO_THREADS = [
+  {
+    id: "THREAD-DEMO001",
+    requesterName: "田中 美咲",
+    inquiries: [DEMO_CASES[0]],
+    updatedAt: DEMO_CASES[0].timestamp
+  },
+  {
+    id: "THREAD-DEMO002",
+    requesterName: "鈴木 健一",
+    inquiries: [DEMO_CASES[1]],
+    updatedAt: DEMO_CASES[1].timestamp
+  },
+  {
+    id: "THREAD-DEMO003",
+    requesterName: "山本 裕子",
+    inquiries: [DEMO_CASES[2]],
+    updatedAt: DEMO_CASES[2].timestamp
+  }
+];
+
 // ── Main App ──
 export default function App() {
   const [step, setStep] = useState(0);
@@ -111,16 +163,16 @@ export default function App() {
   const [aiDraft, setAiDraft] = useState("");
   const [finalResponse, setFinalResponse] = useState("");
   const [loading, setLoading] = useState(false);
-  const [published, setPublished] = useState(false);
-  const [lastPublishedCase, setLastPublishedCase] = useState(null);
+  const [published, setPublished] = useState(true);
+  const [lastPublishedCase, setLastPublishedCase] = useState(DEMO_CASES[DEMO_CASES.length - 1]);
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState("admin"); // admin | public
   const [viewCaseId, setViewCaseId] = useState(null);
   const [adminMode, setAdminMode] = useState("workflow"); // workflow | knowledge | history
   const [kbForm, setKbForm] = useState({ disability: "", topic: "", content: "" });
-  const [allCases, setAllCases] = useState([]);
-  const [inquiryThreads, setInquiryThreads] = useState([]);
-  const [selectedThreadId, setSelectedThreadId] = useState("");
+  const [allCases, setAllCases] = useState(DEMO_CASES);
+  const [inquiryThreads, setInquiryThreads] = useState(DEMO_THREADS);
+  const [selectedThreadId, setSelectedThreadId] = useState(DEMO_THREADS[0].id);
   const textRef = useRef(null);
 
   // ── Hash routing for reply pages ──

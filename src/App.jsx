@@ -45,7 +45,7 @@ const SKILL_LEVELS = [
   { value: 5, label: "5 — 応用操作も可能" }
 ];
 
-const STEPS = ["受付・投入", "属性設定", "AI生成", "修正・確定", "公開・蓄積"];
+const STEPS = ["受付・投入", "属性設定", "AI生成", "修正・確定", "回答URL"];
 
 // ── Utility ──
 function generateId() {
@@ -247,16 +247,8 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setViewMode("admin")} style={{
-            padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,.3)",
-            background: viewMode === "admin" ? "rgba(255,255,255,.2)" : "transparent",
-            color: "#fff", fontSize: 11, cursor: "pointer", fontWeight: 600
-          }}>管理画面</button>
-          <button onClick={() => setViewMode("public")} style={{
-            padding: "6px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,.3)",
-            background: viewMode === "public" ? "rgba(255,255,255,.2)" : "transparent",
-            color: "#fff", fontSize: 11, cursor: "pointer", fontWeight: 600
-          }}>公開ページ プレビュー</button>
+          <button onClick={() => setViewMode("admin")} style={glassHeader(viewMode === "admin")}>管理画面</button>
+          <button onClick={() => setViewMode("public")} style={glassHeader(viewMode === "public")}>公開ページ プレビュー</button>
         </div>
       </div>
 
@@ -295,24 +287,9 @@ export default function App() {
         /* ── Admin panel ── */
         <div style={{ maxWidth: 780, margin: "24px auto", padding: "0 16px" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            <button onClick={() => setAdminMode("workflow")} style={{
-              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
-              background: adminMode === "workflow" ? "#2563eb" : "#fff",
-              color: adminMode === "workflow" ? "#fff" : "#334155",
-              fontSize: 12, fontWeight: 700, cursor: "pointer"
-            }}>相談ワークフロー</button>
-            <button onClick={() => setAdminMode("knowledge")} style={{
-              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
-              background: adminMode === "knowledge" ? "#2563eb" : "#fff",
-              color: adminMode === "knowledge" ? "#fff" : "#334155",
-              fontSize: 12, fontWeight: 700, cursor: "pointer"
-            }}>ナレッジ登録</button>
-            <button onClick={() => setAdminMode("history")} style={{
-              padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1",
-              background: adminMode === "history" ? "#2563eb" : "#fff",
-              color: adminMode === "history" ? "#fff" : "#334155",
-              fontSize: 12, fontWeight: 700, cursor: "pointer"
-            }}>履歴管理</button>
+            <button onClick={() => setAdminMode("workflow")} style={glassTab(adminMode === "workflow")}>相談ワークフロー</button>
+            <button onClick={() => setAdminMode("knowledge")} style={glassTab(adminMode === "knowledge")}>ナレッジ登録</button>
+            <button onClick={() => setAdminMode("history")} style={glassTab(adminMode === "history")}>履歴管理</button>
           </div>
 
           {adminMode === "workflow" && <StepIndicator current={step} />}
@@ -367,12 +344,7 @@ export default function App() {
                   <button
                     onClick={addKnowledge}
                     disabled={!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()}
-                    style={{
-                      padding: "10px 24px", borderRadius: 8, border: "none",
-                      background: (kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? "#1a6b4a" : "#cbd5e1",
-                      color: "#fff", fontWeight: 700, fontSize: 13,
-                      cursor: (kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? "pointer" : "default"
-                    }}
+                    style={(kbForm.disability && kbForm.topic.trim() && kbForm.content.trim()) ? glassSuccess : glassSuccessDisabled}
                   >+ ナレッジを追加</button>
                 </div>
 
@@ -478,11 +450,7 @@ export default function App() {
                   📎 画像添付（将来拡張予定）
                 </div>
                 <div style={{ marginTop: 20, textAlign: "right" }}>
-                  <button disabled={!inquiry.trim()} onClick={() => setStep(1)} style={{
-                    padding: "10px 28px", borderRadius: 8, border: "none",
-                    background: inquiry.trim() ? "#2563eb" : "#cbd5e1",
-                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: inquiry.trim() ? "pointer" : "default"
-                  }}>次へ：属性設定 →</button>
+                  <button disabled={!inquiry.trim()} onClick={() => setStep(1)} style={inquiry.trim() ? glassPrimary : glassPrimaryDisabled}>次へ：属性設定 →</button>
                 </div>
               </div>
             )}
@@ -535,11 +503,17 @@ export default function App() {
                               : [...meta.disabilities, d]
                           });
                         }} style={{
-                          padding: "7px 16px", borderRadius: 20,
-                          border: sel ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
-                          background: sel ? "#eff6ff" : "#fff",
+                          ...glassBase,
+                          padding: "8px 18px", borderRadius: 22,
+                          border: sel ? "1.5px solid rgba(37,99,235,.5)" : "1px solid rgba(226,232,240,.6)",
+                          background: sel
+                            ? "linear-gradient(135deg, rgba(37,99,235,.18) 0%, rgba(59,130,246,.12) 100%)"
+                            : "rgba(255,255,255,.55)",
                           color: sel ? "#2563eb" : "#475569",
-                          fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer"
+                          fontSize: 12, fontWeight: sel ? 700 : 500,
+                          boxShadow: sel
+                            ? "0 2px 12px rgba(37,99,235,.12), inset 0 1px 0 rgba(255,255,255,.4)"
+                            : "0 1px 6px rgba(0,0,0,.03), inset 0 1px 0 rgba(255,255,255,.7)",
                         }}>{d}</button>
                       );
                     })}
@@ -562,12 +536,7 @@ export default function App() {
                   <button onClick={() => setStep(0)} style={backBtnStyle}>← 戻る</button>
                   <button disabled={!meta.inquirer || !meta.org || meta.disabilities.length === 0}
                     onClick={() => { setStep(2); generateDraft(); }}
-                    style={{
-                      padding: "10px 28px", borderRadius: 8, border: "none",
-                      background: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "#2563eb" : "#cbd5e1",
-                      color: "#fff", fontWeight: 700, fontSize: 13,
-                      cursor: (meta.inquirer && meta.org && meta.disabilities.length > 0) ? "pointer" : "default"
-                    }}>次へ：AI回答生成 →</button>
+                    style={(meta.inquirer && meta.org && meta.disabilities.length > 0) ? glassPrimary : glassPrimaryDisabled}>次へ：AI回答生成 →</button>
                 </div>
               </div>
             )}
@@ -617,10 +586,7 @@ export default function App() {
                     </div>
                     <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between" }}>
                       <button onClick={() => setStep(1)} style={backBtnStyle}>← 属性を修正</button>
-                      <button onClick={() => setStep(3)} style={{
-                        padding: "10px 28px", borderRadius: 8, border: "none",
-                        background: "#2563eb", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-                      }}>次へ：修正・確定 →</button>
+                      <button onClick={() => setStep(3)} style={glassPrimary}>次へ：修正・確定 →</button>
                     </div>
                   </>
                 )}
@@ -655,10 +621,7 @@ export default function App() {
                 )}
                 <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between" }}>
                   <button onClick={() => setStep(2)} style={backBtnStyle}>← AI案を再確認</button>
-                  <button onClick={confirmResponse} style={{
-                    padding: "10px 28px", borderRadius: 8, border: "none",
-                    background: "#1a6b4a", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-                  }}>✓ 確定して公開</button>
+                  <button onClick={confirmResponse} style={glassSuccess}>✓ 確定して公開</button>
                 </div>
               </div>
             )}
@@ -726,10 +689,7 @@ export default function App() {
                   setStep(0); setInquiry(""); setAiDraft(""); setFinalResponse("");
                   setPublished(false); setHistory([]);
                   setMeta({ requesterName: "", inquirer: "", org: "", disabilities: [], skill: 3 });
-                }} style={{
-                  padding: "10px 28px", borderRadius: 8, border: "none",
-                  background: "#2563eb", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer"
-                }}>+ 新しい相談を受付</button>
+                }} style={glassPrimary}>+ 新しい相談を受付</button>
               </div>
             )}
           </div>
@@ -774,8 +734,83 @@ const inputStyle = {
   boxSizing: "border-box"
 };
 
-const backBtnStyle = {
-  padding: "10px 20px", borderRadius: 8,
-  border: "1.5px solid #e2e8f0", background: "#fff",
-  color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer"
+// ── Liquid Glass button styles ──
+const glassBase = {
+  backdropFilter: "blur(20px) saturate(180%)",
+  WebkitBackdropFilter: "blur(20px) saturate(180%)",
+  borderRadius: 14,
+  fontWeight: 600, fontSize: 13, cursor: "pointer",
+  transition: "all .25s cubic-bezier(.4,0,.2,1)",
+  letterSpacing: ".01em",
 };
+
+const glassPrimary = {
+  ...glassBase,
+  padding: "11px 28px",
+  background: "linear-gradient(135deg, rgba(37,99,235,.72) 0%, rgba(59,130,246,.58) 100%)",
+  border: "1px solid rgba(255,255,255,.35)",
+  color: "#fff",
+  boxShadow: "0 4px 24px rgba(37,99,235,.25), inset 0 1px 0 rgba(255,255,255,.3)",
+};
+
+const glassPrimaryDisabled = {
+  ...glassBase,
+  padding: "11px 28px",
+  background: "rgba(203,213,225,.45)",
+  border: "1px solid rgba(203,213,225,.3)",
+  color: "rgba(100,116,139,.6)",
+  boxShadow: "none",
+  cursor: "default",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+};
+
+const glassSuccess = {
+  ...glassBase,
+  padding: "11px 28px",
+  background: "linear-gradient(135deg, rgba(26,107,74,.72) 0%, rgba(22,163,74,.55) 100%)",
+  border: "1px solid rgba(255,255,255,.3)",
+  color: "#fff",
+  boxShadow: "0 4px 24px rgba(26,107,74,.22), inset 0 1px 0 rgba(255,255,255,.25)",
+};
+
+const glassSuccessDisabled = {
+  ...glassBase,
+  padding: "11px 28px",
+  background: "rgba(203,213,225,.45)",
+  border: "1px solid rgba(203,213,225,.3)",
+  color: "rgba(100,116,139,.6)",
+  boxShadow: "none",
+  cursor: "default",
+};
+
+const backBtnStyle = {
+  ...glassBase,
+  padding: "11px 20px",
+  background: "rgba(255,255,255,.55)",
+  border: "1px solid rgba(226,232,240,.7)",
+  color: "#475569",
+  boxShadow: "0 2px 12px rgba(0,0,0,.04), inset 0 1px 0 rgba(255,255,255,.6)",
+};
+
+const glassHeader = (active) => ({
+  ...glassBase,
+  padding: "7px 16px", borderRadius: 12, fontSize: 11,
+  background: active ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.08)",
+  border: active ? "1px solid rgba(255,255,255,.4)" : "1px solid rgba(255,255,255,.18)",
+  color: "#fff",
+  boxShadow: active ? "0 2px 16px rgba(255,255,255,.1), inset 0 1px 0 rgba(255,255,255,.2)" : "none",
+});
+
+const glassTab = (active) => ({
+  ...glassBase,
+  padding: "9px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700,
+  background: active
+    ? "linear-gradient(135deg, rgba(37,99,235,.68) 0%, rgba(59,130,246,.52) 100%)"
+    : "rgba(255,255,255,.6)",
+  border: active ? "1px solid rgba(255,255,255,.35)" : "1px solid rgba(226,232,240,.6)",
+  color: active ? "#fff" : "#334155",
+  boxShadow: active
+    ? "0 4px 20px rgba(37,99,235,.18), inset 0 1px 0 rgba(255,255,255,.25)"
+    : "0 1px 8px rgba(0,0,0,.03), inset 0 1px 0 rgba(255,255,255,.7)",
+});

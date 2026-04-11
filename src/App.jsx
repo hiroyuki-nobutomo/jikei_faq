@@ -681,7 +681,7 @@ export default function App() {
                     fontSize: 13, color: "#2563eb", wordBreak: "break-all",
                     border: "1px solid #e2e8f0"
                   }}>
-                    🔗 {generateUrl(caseId)}
+                    🔗 {lastPublishedCase ? generateUrl(lastPublishedCase.id) : ""}
                   </div>
                   <div style={{ marginTop: 10, fontSize: 11, color: "#6b7280" }}>
                     このURLを相談者に共有してください。認証なしで閲覧可能です。

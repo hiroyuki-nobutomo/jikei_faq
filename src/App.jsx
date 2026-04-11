@@ -849,28 +849,6 @@ export default function App() {
               </div>
             )}
           </div>
-
-          {/* Case list sidebar */}
-          {allCases.length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "#475569" }}>
-                処理済み案件
-              </div>
-              {allCases.map(c => (
-                <div key={c.id} style={{
-                  background: "#fff", borderRadius: 8, padding: "12px 16px",
-                  marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,.04)",
-                  fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center"
-                }}>
-                  <div>
-                    <span style={{ fontWeight: 700, color: "#0f3460", marginRight: 10 }}>{c.id}</span>
-                    {c.inquiry}
-                  </div>
-                  <span style={{ color: "#1a6b4a", fontSize: 11, whiteSpace: "nowrap" }}>✓ 公開済</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>

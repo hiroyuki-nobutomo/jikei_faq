@@ -43,11 +43,17 @@ export default function App() {
   // ── AI回答生成 ──
   async function handleGenerateDraft() {
     setLoading(true);
-    const text = await generateAIDraft({ inquiry, meta, knowledgeBase });
-    setAiDraft(text);
-    setFinalResponse(text);
-    setEditHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
-    setLoading(false);
+    try {
+      const text = await generateAIDraft({ inquiry, meta, knowledgeBase });
+      setAiDraft(text);
+      setFinalResponse(text);
+      setEditHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
+    } catch {
+      setAiDraft("回答の生成中にエラーが発生しました。もう一度お試しください。");
+      setFinalResponse("");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // ── 回答確定 ──

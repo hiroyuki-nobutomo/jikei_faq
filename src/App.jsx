@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 // ── Sample knowledge base (simulates RAG) ──
 const KNOWLEDGE_BASE = [
@@ -52,7 +52,7 @@ function generateId() {
   return "CASE-" + Date.now().toString(36).toUpperCase();
 }
 function generateUrl(id) {
-  return `https://accessibility.jikei.ac.jp/reply/${id}`;
+  return `${window.location.origin}${window.location.pathname}#/reply/${id}`;
 }
 
 // ── Components ──
@@ -115,12 +115,48 @@ export default function App() {
   const [lastPublishedCase, setLastPublishedCase] = useState(null);
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState("admin"); // admin | public
+  const [viewCaseId, setViewCaseId] = useState(null);
   const [adminMode, setAdminMode] = useState("workflow"); // workflow | knowledge | history
   const [kbForm, setKbForm] = useState({ disability: "", topic: "", content: "" });
   const [allCases, setAllCases] = useState([]);
   const [inquiryThreads, setInquiryThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const textRef = useRef(null);
+
+  // ── Hash routing for reply pages ──
+  const handleHashChange = useCallback(() => {
+    const hash = window.location.hash;
+    const match = hash.match(/^#\/reply\/(.+)$/);
+    if (match) {
+      setViewCaseId(match[1]);
+      setViewMode("public");
+    }
+  }, []);
+
+  useEffect(() => {
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [handleHashChange]);
+
+  const switchToPublic = (caseId) => {
+    if (caseId) {
+      window.location.hash = `/reply/${caseId}`;
+    } else if (lastPublishedCase) {
+      window.location.hash = `/reply/${lastPublishedCase.id}`;
+    }
+    setViewMode("public");
+  };
+
+  const switchToAdmin = () => {
+    window.location.hash = "";
+    setViewCaseId(null);
+    setViewMode("admin");
+  };
+
+  const viewingCase = viewCaseId
+    ? allCases.find(c => c.id === viewCaseId) || lastPublishedCase
+    : lastPublishedCase;
 
   // ── AI generation (Mock Simulation) ──
   // 注意: ブラウザから直接Anthropic APIを叩くことはCORS制限で弾かれるため、
@@ -247,20 +283,36 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setViewMode("admin")} style={glassHeader(viewMode === "admin")}>管理画面</button>
-          <button onClick={() => setViewMode("public")} style={glassHeader(viewMode === "public")}>公開ページ プレビュー</button>
+          <button onClick={switchToAdmin} style={glassHeader(viewMode === "admin")}>管理画面</button>
+          <button onClick={() => switchToPublic(null)} style={glassHeader(viewMode === "public")}>回答ページプレビュー</button>
         </div>
       </div>
 
-      {viewMode === "public" && published ? (
-        /* ── Public page preview ── */
+      {viewMode === "public" && viewingCase ? (
+        /* ── Public reply page ── */
         <div style={{ maxWidth: 680, margin: "32px auto", padding: "0 16px" }}>
+          {allCases.length > 1 && (
+            <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {allCases.map(c => (
+                <button key={c.id} onClick={() => switchToPublic(c.id)} style={{
+                  ...glassBase, padding: "6px 14px", borderRadius: 10, fontSize: 11,
+                  background: (viewCaseId === c.id || (!viewCaseId && c.id === lastPublishedCase?.id))
+                    ? "linear-gradient(135deg, rgba(37,99,235,.65), rgba(59,130,246,.48))"
+                    : "rgba(255,255,255,.55)",
+                  border: (viewCaseId === c.id || (!viewCaseId && c.id === lastPublishedCase?.id))
+                    ? "1px solid rgba(255,255,255,.35)" : "1px solid rgba(226,232,240,.6)",
+                  color: (viewCaseId === c.id || (!viewCaseId && c.id === lastPublishedCase?.id)) ? "#fff" : "#475569",
+                  boxShadow: "0 1px 6px rgba(0,0,0,.04)",
+                }}>{c.id}</button>
+              ))}
+            </div>
+          )}
           <div style={{
             background: "#fff", borderRadius: 16, padding: 32,
             boxShadow: "0 2px 12px rgba(0,0,0,.06)"
           }}>
             <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
-              案件番号: {lastPublishedCase?.id}
+              案件番号: {viewingCase.id}
             </div>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 20px", lineHeight: 1.6 }}>
               ご相談への回答
@@ -270,7 +322,7 @@ export default function App() {
               padding: "16px 20px", borderRadius: "0 8px 8px 0",
               fontSize: 14, lineHeight: 1.9, whiteSpace: "pre-wrap"
             }} role="main" aria-label="回答内容">
-              {lastPublishedCase?.finalResponse}
+              {viewingCase.finalResponse}
             </div>
             <div style={{ marginTop: 24, padding: "12px 16px", background: "#f8fafc", borderRadius: 8, fontSize: 11, color: "#64748b", lineHeight: 1.7 }}>
               <strong>慈恵医科大学 アクセシビリティ支援チーム</strong><br />
@@ -279,7 +331,7 @@ export default function App() {
             </div>
           </div>
         </div>
-      ) : viewMode === "public" && !published ? (
+      ) : viewMode === "public" && !viewingCase ? (
         <div style={{ textAlign: "center", padding: 60, color: "#9ca3af", fontSize: 14 }}>
           まだ公開された回答がありません。管理画面でワークフローを完了してください。
         </div>
@@ -630,24 +682,29 @@ export default function App() {
             {adminMode === "workflow" && step === 4 && (
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#1a6b4a" }}>
-                  ✓ 公開・蓄積完了
+                  ✓ 回答URLが生成されました
                 </h3>
                 <div style={{
                   background: "#f0fdf4", borderRadius: 10, padding: 20,
                   border: "1px solid #bbf7d0", marginBottom: 20
                 }}>
                   <div style={{ fontSize: 12, color: "#166534", fontWeight: 600, marginBottom: 8 }}>
-                    回答が公開されました
+                    以下のURLから回答を確認できます
                   </div>
-                  <div style={{
-                    background: "#fff", borderRadius: 6, padding: "10px 14px",
-                    fontSize: 13, color: "#2563eb", wordBreak: "break-all",
-                    border: "1px solid #e2e8f0"
-                  }}>
+                  <a
+                    href={lastPublishedCase ? `#/reply/${lastPublishedCase.id}` : "#"}
+                    onClick={(e) => { e.preventDefault(); if (lastPublishedCase) switchToPublic(lastPublishedCase.id); }}
+                    style={{
+                      display: "block", background: "#fff", borderRadius: 6, padding: "10px 14px",
+                      fontSize: 13, color: "#2563eb", wordBreak: "break-all",
+                      border: "1px solid #e2e8f0", textDecoration: "none",
+                      cursor: "pointer", transition: "background .2s",
+                    }}
+                  >
                     🔗 {lastPublishedCase ? generateUrl(lastPublishedCase.id) : ""}
-                  </div>
+                  </a>
                   <div style={{ marginTop: 10, fontSize: 11, color: "#6b7280" }}>
-                    このURLを相談者に共有してください。認証なしで閲覧可能です。
+                    このURLを相談者に共有してください。クリックすると回答ページを表示します。
                   </div>
                 </div>
 

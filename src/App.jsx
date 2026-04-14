@@ -135,6 +135,7 @@ export default function App() {
     setFinalResponse("");
     setEditHistory([]);
     setMeta({ requesterName: "", inquirer: "", org: "", disabilities: [], skill: 3 });
+    setSavedToKnowledge(false);
   }
 
   // ── ナレッジ操作 ──
@@ -171,6 +172,27 @@ export default function App() {
     }
     setKnowledgeBase(prev => prev.filter(item => item.id !== id));
     if (kbForm.editId === id) setKbForm({ disability: "", topic: "", content: "" });
+  }
+
+  // ── 確定回答をナレッジに登録 ──
+  const [savedToKnowledge, setSavedToKnowledge] = useState(false);
+
+  async function handleSaveToKnowledge() {
+    if (!lastPublishedCase) return;
+    const topicLabel = meta.disabilities.join("・") + " に関する相談回答";
+    const entry = {
+      id: "KB-" + Date.now().toString(36).toUpperCase(),
+      disability: meta.disabilities[0] || "その他",
+      topic: topicLabel,
+      content: lastPublishedCase.finalResponse.slice(0, 500),
+    };
+    try {
+      await addKnowledgeToSheet(entry);
+      setKnowledgeBase(prev => [entry, ...prev]);
+      setSavedToKnowledge(true);
+    } catch (err) {
+      console.error("ナレッジ登録エラー:", err);
+    }
   }
 
   // ── Escalation ──
@@ -438,16 +460,26 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{
-                  background: "#eff6ff", borderRadius: 10, padding: 20,
-                  border: "1px solid #bfdbfe", marginBottom: 20
+                  background: savedToKnowledge ? "#f0fdf4" : "#eff6ff", borderRadius: 10, padding: 20,
+                  border: savedToKnowledge ? "1px solid #bbf7d0" : "1px solid #bfdbfe", marginBottom: 20
                 }}>
-                  <div style={{ fontSize: 12, color: "#1e40af", fontWeight: 600, marginBottom: 6 }}>
-                    &#x1F9E0; ナレッジ自動蓄積
-                  </div>
-                  <div style={{ fontSize: 12, color: "#3b82f6" }}>
-                    確定回答がベクトルDBへ追加（Upsert）されました。<br />
-                    次回の類似相談でこの回答が優先的にヒットします。
-                  </div>
+                  {savedToKnowledge ? (
+                    <div style={{ fontSize: 12, color: "#166534", fontWeight: 600 }}>
+                      ✓ この回答をナレッジに登録しました。次回以降のAI回答生成に活用されます。
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 12, color: "#1e40af", fontWeight: 600, marginBottom: 8 }}>
+                        この回答を今後のナレッジとして登録しますか？
+                      </div>
+                      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+                        登録すると、類似の相談でこの回答がAI生成の参考になります。
+                      </div>
+                      <button onClick={handleSaveToKnowledge} style={glassPrimary}>
+                        ナレッジに登録する
+                      </button>
+                    </>
+                  )}
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>修正履歴</div>

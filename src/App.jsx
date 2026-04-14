@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { INQUIRER_TYPES, ORG_TYPES, DISABILITY_TYPES, SKILL_LEVELS } from "./data/constants";
 import { INITIAL_KNOWLEDGE_BASE } from "./data/knowledgeBase";
-import { DEMO_CASES, DEMO_THREADS } from "./data/demoCases";
 import { generateAIDraft } from "./services/aiService";
-import { generateCaseId, generateReplyUrl, createCaseRecord, addCaseToThreads } from "./services/threadService";
+import { generateCaseId, generateReplyUrl, createCaseRecord } from "./services/threadService";
+import { setupSheets, fetchKnowledge, addKnowledgeToSheet, updateKnowledgeOnSheet, deleteKnowledgeFromSheet, fetchCasesAndThreads, addCaseToSheet } from "./services/sheetService";
 import { useHashRouting } from "./hooks/useHashRouting";
 import { glassPrimary, glassPrimaryDisabled, glassSuccess, glassBase, backBtnStyle, glassTab, selectStyle, inputStyle } from "./styles/glassStyles";
 import Header from "./components/Header";
@@ -25,11 +25,12 @@ export default function App() {
   const textRef = useRef(null);
 
   // ── Data state ──
-  const [knowledgeBase, setKnowledgeBase] = useState(INITIAL_KNOWLEDGE_BASE);
-  const [allCases, setAllCases] = useState(DEMO_CASES);
-  const [lastPublishedCase, setLastPublishedCase] = useState(DEMO_CASES[DEMO_CASES.length - 1]);
-  const [inquiryThreads, setInquiryThreads] = useState(DEMO_THREADS);
-  const [selectedThreadId, setSelectedThreadId] = useState(DEMO_THREADS[0].id);
+  const [knowledgeBase, setKnowledgeBase] = useState([]);
+  const [allCases, setAllCases] = useState([]);
+  const [lastPublishedCase, setLastPublishedCase] = useState(null);
+  const [inquiryThreads, setInquiryThreads] = useState([]);
+  const [selectedThreadId, setSelectedThreadId] = useState("");
+  const [dataLoading, setDataLoading] = useState(true);
 
   // ── UI state ──
   const [adminMode, setAdminMode] = useState("workflow");
@@ -39,6 +40,38 @@ export default function App() {
   const viewingCase = viewCaseId
     ? allCases.find(c => c.id === viewCaseId) || lastPublishedCase
     : lastPublishedCase;
+
+  // ── 起動時にシートからデータ読み込み ──
+  useEffect(() => {
+    async function loadData() {
+      try {
+        await setupSheets();
+        const [kbData, casesData] = await Promise.all([
+          fetchKnowledge(),
+          fetchCasesAndThreads(),
+        ]);
+        if (kbData.length > 0) {
+          setKnowledgeBase(kbData);
+        } else {
+          setKnowledgeBase(INITIAL_KNOWLEDGE_BASE);
+        }
+        if (casesData.cases.length > 0) {
+          setAllCases(casesData.cases);
+          setLastPublishedCase(casesData.cases[casesData.cases.length - 1]);
+          setInquiryThreads(casesData.threads);
+          if (casesData.threads.length > 0) {
+            setSelectedThreadId(casesData.threads[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("データ読み込みエラー:", err);
+        setKnowledgeBase(INITIAL_KNOWLEDGE_BASE);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   // ── AI回答生成 ──
   async function handleGenerateDraft() {
@@ -57,7 +90,7 @@ export default function App() {
   }
 
   // ── 回答確定 ──
-  function handleConfirm() {
+  async function handleConfirm() {
     const caseId = generateCaseId();
     const caseRecord = createCaseRecord({ caseId, inquiry, meta, finalResponse });
 
@@ -65,13 +98,32 @@ export default function App() {
       setEditHistory(h => [...h, { version: h.length + 1, text: finalResponse, editor: "担当者", timestamp: new Date().toISOString() }]);
     }
 
+    // シートに保存
+    try {
+      await addCaseToSheet(caseRecord);
+    } catch (err) {
+      console.error("案件保存エラー:", err);
+    }
+
+    // UIを更新（シートから再読み込みする代わりにローカル更新）
     setLastPublishedCase(caseRecord);
     setAllCases(c => [...c, caseRecord]);
-    setInquiryThreads(prev => {
-      const { threads, newThreadId } = addCaseToThreads(prev, caseRecord);
-      setSelectedThreadId(newThreadId);
-      return threads;
-    });
+
+    // スレッド再構築
+    try {
+      const casesData = await fetchCasesAndThreads();
+      setAllCases(casesData.cases);
+      setInquiryThreads(casesData.threads);
+      if (casesData.threads.length > 0) {
+        const latestThread = casesData.threads.find(t =>
+          t.inquiries.some(i => i.id === caseId)
+        );
+        setSelectedThreadId(latestThread?.id || casesData.threads[0].id);
+      }
+    } catch {
+      // フォールバック: ローカルのまま
+    }
+
     setStep(4);
   }
 
@@ -86,22 +138,23 @@ export default function App() {
   }
 
   // ── ナレッジ操作 ──
-  function handleAddOrUpdateKnowledge() {
+  async function handleAddOrUpdateKnowledge() {
     if (!kbForm.disability || !kbForm.topic.trim() || !kbForm.content.trim()) return;
-    if (kbForm.editId) {
-      setKnowledgeBase(prev => prev.map(item =>
-        item.id === kbForm.editId
-          ? { ...item, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() }
-          : item
-      ));
-    } else {
-      const newEntry = {
-        id: "KB-" + Date.now().toString(36).toUpperCase(),
-        disability: kbForm.disability,
-        topic: kbForm.topic.trim(),
-        content: kbForm.content.trim()
-      };
-      setKnowledgeBase(prev => [newEntry, ...prev]);
+    try {
+      if (kbForm.editId) {
+        await updateKnowledgeOnSheet({ id: kbForm.editId, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() });
+        setKnowledgeBase(prev => prev.map(item =>
+          item.id === kbForm.editId
+            ? { ...item, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() }
+            : item
+        ));
+      } else {
+        const newId = "KB-" + Date.now().toString(36).toUpperCase();
+        await addKnowledgeToSheet({ id: newId, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() });
+        setKnowledgeBase(prev => [{ id: newId, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() }, ...prev]);
+      }
+    } catch (err) {
+      console.error("ナレッジ保存エラー:", err);
     }
     setKbForm({ disability: "", topic: "", content: "" });
   }
@@ -110,7 +163,12 @@ export default function App() {
     setKbForm({ editId: item.id, disability: item.disability, topic: item.topic, content: item.content });
   }
 
-  function handleDeleteKnowledge(id) {
+  async function handleDeleteKnowledge(id) {
+    try {
+      await deleteKnowledgeFromSheet(id);
+    } catch (err) {
+      console.error("ナレッジ削除エラー:", err);
+    }
     setKnowledgeBase(prev => prev.filter(item => item.id !== id));
     if (kbForm.editId === id) setKbForm({ disability: "", topic: "", content: "" });
   }
@@ -130,7 +188,17 @@ export default function App() {
         onSwitchToPublic={() => lastPublishedCase ? switchToPublic(lastPublishedCase.id) : null}
       />
 
-      {viewMode === "public" ? (
+      {dataLoading ? (
+        <div style={{ textAlign: "center", padding: 80 }}>
+          <div style={{
+            width: 40, height: 40, border: "3px solid #e2e8f0",
+            borderTopColor: "#2563eb", borderRadius: "50%",
+            animation: "spin 1s linear infinite", margin: "0 auto 16px"
+          }} />
+          <div style={{ fontSize: 13, color: "#6b7280" }}>データを読み込み中…</div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      ) : viewMode === "public" ? (
         <PublicReplyPage
           viewingCase={viewingCase}
           allCases={allCases}

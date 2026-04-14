@@ -81,8 +81,8 @@ export default function App() {
       setAiDraft(text);
       setFinalResponse(text);
       setEditHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
-    } catch {
-      setAiDraft("回答の生成中にエラーが発生しました。もう一度お試しください。");
+    } catch (err) {
+      setAiDraft(`回答の生成中にエラーが発生しました。\n\n詳細: ${err.message}\n\nもう一度お試しください。`);
       setFinalResponse("");
     } finally {
       setLoading(false);

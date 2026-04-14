@@ -38,8 +38,9 @@ export async function generateAIDraft({ inquiry, meta, knowledgeBase }) {
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${res.status}`);
+    const body = await res.json().catch(() => ({}));
+    const msg = [body.error, body.detail].filter(Boolean).join(" — ");
+    throw new Error(msg || `API error: ${res.status}`);
   }
 
   const data = await res.json();

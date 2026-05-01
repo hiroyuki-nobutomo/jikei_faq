@@ -1,5 +1,3 @@
-import { generateReplyUrl } from "../services/threadService";
-
 export default function HistoryPanel({ threads, selectedThreadId, onSelectThread, onViewReply }) {
   const selectedThread = threads.find(t => t.id === selectedThreadId) || threads[0];
 

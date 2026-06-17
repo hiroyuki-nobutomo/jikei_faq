@@ -4,7 +4,10 @@
  * Vercel API Route (/api/generate) を経由して OpenAI API を呼び出す。
  * ブラウザから直接 OpenAI API を叩くとAPIキーが露出するため、
  * 必ずサーバーサイド経由とする。
+ * 管理操作のため Authorization: Bearer <ADMIN_SECRET> を付与する。
  */
+
+import { adminHeaders } from "./auth";
 
 /**
  * ナレッジベースから相談内容に関連するエントリを検索する。
@@ -29,7 +32,7 @@ export async function generateAIDraft({ inquiry, meta, knowledgeBase }) {
 
   const res = await fetch("/api/generate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({
       inquiry,
       meta,
@@ -39,8 +42,9 @@ export async function generateAIDraft({ inquiry, meta, knowledgeBase }) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const msg = [body.error, body.detail].filter(Boolean).join(" — ");
-    throw new Error(msg || `API error: ${res.status}`);
+    const err = new Error(body.error || `API error: ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
 
   const data = await res.json();

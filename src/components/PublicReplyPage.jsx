@@ -1,6 +1,4 @@
-import { glassBase } from "../styles/glassStyles";
-
-export default function PublicReplyPage({ viewingCase, allCases, viewCaseId, lastPublishedCaseId, onSelectCase }) {
+export default function PublicReplyPage({ viewingCase }) {
   if (!viewingCase) {
     return (
       <div style={{ textAlign: "center", padding: 60, color: "#9ca3af", fontSize: 14 }}>
@@ -11,24 +9,6 @@ export default function PublicReplyPage({ viewingCase, allCases, viewCaseId, las
 
   return (
     <div style={{ maxWidth: 680, margin: "32px auto", padding: "0 16px" }}>
-      {allCases.length > 1 && (
-        <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {allCases.map(c => {
-            const isActive = viewCaseId === c.id || (!viewCaseId && c.id === lastPublishedCaseId);
-            return (
-              <button key={c.id} onClick={() => onSelectCase(c.id)} style={{
-                ...glassBase, padding: "6px 14px", borderRadius: 10, fontSize: 11,
-                background: isActive
-                  ? "linear-gradient(135deg, rgba(37,99,235,.65), rgba(59,130,246,.48))"
-                  : "rgba(255,255,255,.55)",
-                border: isActive ? "1px solid rgba(255,255,255,.35)" : "1px solid rgba(226,232,240,.6)",
-                color: isActive ? "#fff" : "#475569",
-                boxShadow: "0 1px 6px rgba(0,0,0,.04)",
-              }}>{c.id}</button>
-            );
-          })}
-        </div>
-      )}
       <div style={{
         background: "#fff", borderRadius: 16, padding: 32,
         boxShadow: "0 2px 12px rgba(0,0,0,.06)"

@@ -44,13 +44,21 @@
 
 スレッドは `requesterName` キーで `api/cases.js` 側がサーバ集約して返す（クライアント側にも `addCaseToThreads` ヘルパが残っているが、確定後はサーバから再取得する流れ）。
 
-### API エンドポイント
-- `POST /api/setup` — シート（`ナレッジ`/`案件`）とヘッダーを初期化
-- `GET/POST/PUT/DELETE /api/knowledge` — ナレッジ CRUD（id 列でマッチ）
-- `GET/POST /api/cases` — GET は `{cases, threads}` を返す
-- `POST /api/generate` — OpenAI を呼び、`{draft}` を返す
+### API エンドポイントと認証
 
-`api/_sheets.js` に `readSheet` / `appendRow` / `updateRow` / `deleteRow` / `ensureSheet` を集約。1 行目をヘッダー、`id` 列を主キーとする。
+管理用エンドポイントは `Authorization: Bearer <ADMIN_SECRET>` 必須。公開ビュー用の個別案件取得のみ無認証。
+認証ロジックは `api/_auth.js` の `requireAdmin(req, res)` に集約。
+
+- `POST /api/setup` 🔒 — シート（`ナレッジ`/`案件`）とヘッダーを初期化
+- `GET/POST/PUT/DELETE /api/knowledge` 🔒 — ナレッジ CRUD（id 列でマッチ）
+- `GET /api/cases` 🔒 — `{cases, threads}` を返す（全件取得・管理用）
+- `GET /api/cases?id=...` 🟢 — 個別案件取得（公開ビュー用、`{case}`）
+- `POST /api/cases` 🔒 — 案件追加
+- `POST /api/generate` 🔒 — OpenAI を呼び、`{draft}` を返す
+
+クライアント側の管理シークレットは `src/services/auth.js` が localStorage (`jikei_admin_secret`) に保管し、`sheetService.js` / `aiService.js` の各 fetch で `Authorization` ヘッダに付与する。401 を受けたら自動的にシークレットを破棄して認証画面に戻す。
+
+`api/_sheets.js` に `readSheet` / `appendRow` / `updateRow` / `deleteRow` / `ensureSheet` を集約。1 行目をヘッダー、`id` 列を主キーとする。env 変数 (`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY` / `GOOGLE_SHEETS_ID`) は `getSheets()` / `SPREADSHEET_ID()` 冒頭で必須チェック。
 
 ## ファイル責務
 
@@ -112,6 +120,7 @@
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | ✅ | Sheets API 認証 |
 | `GOOGLE_PRIVATE_KEY` | ✅ | Sheets API 認証（改行は `\n` エスケープ） |
 | `GOOGLE_SHEETS_ID` | ✅ | 書き込み対象スプレッドシートの ID |
+| `ADMIN_SECRET` | ✅ | 管理 API の Bearer トークン |
 
 サービスアカウントには対象シートの編集権限を共有しておくこと。
 

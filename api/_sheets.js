@@ -5,10 +5,16 @@ let _sheets = null;
 function getSheets() {
   if (_sheets) return _sheets;
 
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !key) {
+    throw new Error("Google Sheets credentials are not configured");
+  }
+
   const auth = new google.auth.GoogleAuth({
     credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      client_email: email,
+      private_key: key.replace(/\\n/g, "\n"),
     },
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
@@ -17,7 +23,11 @@ function getSheets() {
   return _sheets;
 }
 
-const SPREADSHEET_ID = () => process.env.GOOGLE_SHEETS_ID;
+const SPREADSHEET_ID = () => {
+  const id = process.env.GOOGLE_SHEETS_ID;
+  if (!id) throw new Error("GOOGLE_SHEETS_ID is not configured");
+  return id;
+};
 
 /**
  * シートからデータを全行読み取る。

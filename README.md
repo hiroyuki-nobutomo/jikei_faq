@@ -98,16 +98,19 @@ jikei_faq/
 
 ## API 仕様
 
-| メソッド & パス | 役割 |
-|---|---|
-| `POST /api/setup` | 必要なシートとヘッダーを初期化 |
-| `GET /api/knowledge` | ナレッジ一覧を取得 |
-| `POST /api/knowledge` | ナレッジ追加（`{disability, topic, content}`） |
-| `PUT /api/knowledge` | ナレッジ更新（`{id, ...}`） |
-| `DELETE /api/knowledge?id=...` | ナレッジ削除 |
-| `GET /api/cases` | 案件一覧 + スレッド集約（`{cases, threads}`） |
-| `POST /api/cases` | 案件追加 |
-| `POST /api/generate` | OpenAI 呼び出しで回答原案を生成（`{inquiry, meta, knowledgeEntries}` → `{draft}`） |
+管理用エンドポイントは `Authorization: Bearer <ADMIN_SECRET>` を必須とする。公開ビュー用の個別案件取得（`GET /api/cases?id=...`）のみ無認証。
+
+| メソッド & パス | 認証 | 役割 |
+|---|---|---|
+| `POST /api/setup` | 必須 | 必要なシートとヘッダーを初期化 |
+| `GET /api/knowledge` | 必須 | ナレッジ一覧を取得 |
+| `POST /api/knowledge` | 必須 | ナレッジ追加（`{disability, topic, content}`） |
+| `PUT /api/knowledge` | 必須 | ナレッジ更新（`{id, ...}`） |
+| `DELETE /api/knowledge?id=...` | 必須 | ナレッジ削除 |
+| `GET /api/cases` | 必須 | 案件一覧 + スレッド集約（`{cases, threads}`） |
+| `GET /api/cases?id=...` | 不要 | 個別案件取得（公開ビュー用、`{case}`） |
+| `POST /api/cases` | 必須 | 案件追加 |
+| `POST /api/generate` | 必須 | OpenAI 呼び出しで回答原案を生成（`{inquiry, meta, knowledgeEntries}` → `{draft}`） |
 
 ## 環境変数
 
@@ -117,8 +120,9 @@ jikei_faq/
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | サービスアカウントのメール |
 | `GOOGLE_PRIVATE_KEY` | サービスアカウントの秘密鍵（改行は `\n` でエスケープ） |
 | `GOOGLE_SHEETS_ID` | 書き込み対象スプレッドシートの ID |
+| `ADMIN_SECRET` | 管理 API の Bearer トークン（強いランダム値を設定） |
 
-サービスアカウントには対象スプレッドシートの **編集権限** を共有しておくこと。
+サービスアカウントには対象スプレッドシートの **編集権限** を共有しておくこと。Vercel ではこれらを **Sensitive** として登録する（`GOOGLE_SHEETS_ID` は識別子のため任意）。
 
 ## ローカル開発
 

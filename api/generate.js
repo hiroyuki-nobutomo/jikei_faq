@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { requireAdmin } from "./_auth.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -18,6 +19,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  if (!requireAdmin(req, res)) return;
 
   if (!process.env.OPENAI_API_KEY) {
     return res.status(500).json({ error: "OPENAI_API_KEY が設定されていません" });
@@ -62,9 +64,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ draft });
   } catch (error) {
     console.error("OpenAI API error:", error);
-    return res.status(500).json({
-      error: "AI回答の生成に失敗しました",
-      detail: error.message
-    });
+    return res.status(500).json({ error: "AI回答の生成に失敗しました" });
   }
 }

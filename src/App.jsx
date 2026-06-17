@@ -3,7 +3,8 @@ import { INQUIRER_TYPES, ORG_TYPES, DISABILITY_TYPES, SKILL_LEVELS } from "./dat
 import { INITIAL_KNOWLEDGE_BASE } from "./data/knowledgeBase";
 import { generateAIDraft } from "./services/aiService";
 import { generateCaseId, generateReplyUrl, createCaseRecord } from "./services/threadService";
-import { setupSheets, fetchKnowledge, addKnowledgeToSheet, updateKnowledgeOnSheet, deleteKnowledgeFromSheet, fetchCasesAndThreads, addCaseToSheet } from "./services/sheetService";
+import { setupSheets, fetchKnowledge, addKnowledgeToSheet, updateKnowledgeOnSheet, deleteKnowledgeFromSheet, fetchCasesAndThreads, addCaseToSheet, fetchCaseById } from "./services/sheetService";
+import { getAdminSecret, setAdminSecret, clearAdminSecret } from "./services/auth";
 import { useHashRouting } from "./hooks/useHashRouting";
 import { glassPrimary, glassPrimaryDisabled, glassSuccess, glassBase, backBtnStyle, glassTab, selectStyle, inputStyle } from "./styles/glassStyles";
 import Header from "./components/Header";
@@ -12,6 +13,40 @@ import Badge from "./components/Badge";
 import PublicReplyPage from "./components/PublicReplyPage";
 import KnowledgePanel from "./components/KnowledgePanel";
 import HistoryPanel from "./components/HistoryPanel";
+
+function AdminAuthGate({ onSubmit }) {
+  const [secret, setSecret] = useState("");
+  function submit() {
+    const trimmed = secret.trim();
+    if (trimmed) onSubmit(trimmed);
+  }
+  return (
+    <div style={{ maxWidth: 380, margin: "80px auto", padding: "0 16px" }}>
+      <div style={{ background: "#fff", borderRadius: 14, padding: "28px 32px", boxShadow: "0 1px 8px rgba(0,0,0,.05)" }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f3460", margin: "0 0 8px" }}>
+          管理コンソール認証
+        </h3>
+        <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 20px", lineHeight: 1.7 }}>
+          管理シークレットを入力してください。
+        </p>
+        <input
+          type="password"
+          value={secret}
+          onChange={e => setSecret(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          placeholder="ADMIN_SECRET"
+          autoFocus
+          style={inputStyle}
+        />
+        <div style={{ marginTop: 16, textAlign: "right" }}>
+          <button onClick={submit} disabled={!secret.trim()} style={secret.trim() ? glassPrimary : glassPrimaryDisabled}>
+            ログイン
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   // ── Workflow state ──
@@ -37,6 +72,10 @@ export default function App() {
   const [kbForm, setKbForm] = useState({ disability: "", topic: "", content: "" });
   const { viewMode, viewCaseId, switchToPublic, switchToAdmin } = useHashRouting();
 
+  // ── Admin auth state ──
+  const [adminAuthed, setAdminAuthed] = useState(() => !!getAdminSecret());
+  const [authReload, setAuthReload] = useState(0);
+
   const viewingCase = viewCaseId
     ? allCases.find(c => c.id === viewCaseId) || lastPublishedCase
     : lastPublishedCase;
@@ -45,6 +84,20 @@ export default function App() {
   useEffect(() => {
     async function loadData() {
       try {
+        if (viewMode === "public") {
+          // 公開モード: 個別案件のみ取得（無認証）
+          if (viewCaseId) {
+            const caseData = await fetchCaseById(viewCaseId);
+            setLastPublishedCase(caseData);
+            setAllCases([caseData]);
+          }
+          return;
+        }
+        // 管理モード: シークレットが無ければ認証フォームへ
+        if (!getAdminSecret()) {
+          setAdminAuthed(false);
+          return;
+        }
         await setupSheets();
         const [kbData, casesData] = await Promise.all([
           fetchKnowledge(),
@@ -63,15 +116,40 @@ export default function App() {
             setSelectedThreadId(casesData.threads[0].id);
           }
         }
+        setAdminAuthed(true);
       } catch (err) {
         console.error("データ読み込みエラー:", err);
-        setKnowledgeBase(INITIAL_KNOWLEDGE_BASE);
+        if (err.status === 401) {
+          clearAdminSecret();
+          setAdminAuthed(false);
+        } else {
+          setKnowledgeBase(INITIAL_KNOWLEDGE_BASE);
+        }
       } finally {
         setDataLoading(false);
       }
     }
+    setDataLoading(true);
     loadData();
-  }, []);
+  }, [viewMode, viewCaseId, authReload]);
+
+  function handleAuthSubmit(secret) {
+    setAdminSecret(secret);
+    setAuthReload(n => n + 1);
+  }
+
+  function handleLogout() {
+    clearAdminSecret();
+    setAdminAuthed(false);
+  }
+
+  function handleApiError(err, label) {
+    console.error(`${label}:`, err);
+    if (err?.status === 401) {
+      clearAdminSecret();
+      setAdminAuthed(false);
+    }
+  }
 
   // ── AI回答生成 ──
   async function handleGenerateDraft() {
@@ -102,7 +180,8 @@ export default function App() {
     try {
       await addCaseToSheet(caseRecord);
     } catch (err) {
-      console.error("案件保存エラー:", err);
+      handleApiError(err, "案件保存エラー");
+      if (err?.status === 401) return;
     }
 
     // UIを更新（シートから再読み込みする代わりにローカル更新）
@@ -155,7 +234,7 @@ export default function App() {
         setKnowledgeBase(prev => [{ id: newId, disability: kbForm.disability, topic: kbForm.topic.trim(), content: kbForm.content.trim() }, ...prev]);
       }
     } catch (err) {
-      console.error("ナレッジ保存エラー:", err);
+      handleApiError(err, "ナレッジ保存エラー");
     }
     setKbForm({ disability: "", topic: "", content: "" });
   }
@@ -168,7 +247,7 @@ export default function App() {
     try {
       await deleteKnowledgeFromSheet(id);
     } catch (err) {
-      console.error("ナレッジ削除エラー:", err);
+      handleApiError(err, "ナレッジ削除エラー");
     }
     setKnowledgeBase(prev => prev.filter(item => item.id !== id));
     if (kbForm.editId === id) setKbForm({ disability: "", topic: "", content: "" });
@@ -191,7 +270,7 @@ export default function App() {
       setKnowledgeBase(prev => [entry, ...prev]);
       setSavedToKnowledge(true);
     } catch (err) {
-      console.error("ナレッジ登録エラー:", err);
+      handleApiError(err, "ナレッジ登録エラー");
     }
   }
 
@@ -221,19 +300,16 @@ export default function App() {
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       ) : viewMode === "public" ? (
-        <PublicReplyPage
-          viewingCase={viewingCase}
-          allCases={allCases}
-          viewCaseId={viewCaseId}
-          lastPublishedCaseId={lastPublishedCase?.id}
-          onSelectCase={switchToPublic}
-        />
+        <PublicReplyPage viewingCase={viewingCase} />
+      ) : !adminAuthed ? (
+        <AdminAuthGate onSubmit={handleAuthSubmit} />
       ) : (
         <div style={{ maxWidth: 780, margin: "24px auto", padding: "0 16px" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
             <button onClick={() => setAdminMode("workflow")} style={glassTab(adminMode === "workflow")}>相談ワークフロー</button>
             <button onClick={() => setAdminMode("knowledge")} style={glassTab(adminMode === "knowledge")}>ナレッジ登録</button>
             <button onClick={() => setAdminMode("history")} style={glassTab(adminMode === "history")}>履歴管理</button>
+            <button onClick={handleLogout} style={{ ...backBtnStyle, marginLeft: "auto" }}>ログアウト</button>
           </div>
 
           {adminMode === "workflow" && <StepIndicator current={step} />}

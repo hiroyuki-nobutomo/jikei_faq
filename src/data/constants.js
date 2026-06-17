@@ -11,6 +11,8 @@ export const ORG_TYPES = [
   "行政機関", "教育機関", "その他"
 ];
 
+// 注: 案件シートの `disabilities` 列はカンマ区切り CSV で永続化される。
+// 新規ラベルにカンマや改行を含めると split で破綻するので避けること。
 export const DISABILITY_TYPES = [
   "運動機能重度障害", "発話困難", "意思伝達困難",
   "視覚障害", "聴覚障害", "重複障害"

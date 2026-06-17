@@ -3,6 +3,11 @@ import { requireAdmin } from "./_auth.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// エスカレーション判定マーカー: SYSTEM_PROMPT で AI に注記させ、
+// 応答にこの文字列が含まれていれば「ナレッジ不足」とみなす。
+// 判定はサーバ側で行い、クライアントには boolean フラグで返す。
+const ESCALATION_MARKER = "担当者による確認";
+
 const SYSTEM_PROMPT = `あなたは慈恵医科大学アクセシビリティ支援チームのAIアシスタントです。
 障害のある方のICT（情報通信技術）活用に関する相談に、専門的かつ丁寧に回答してください。
 
@@ -13,7 +18,7 @@ const SYSTEM_PROMPT = `あなたは慈恵医科大学アクセシビリティ支
 - 補装具費支給制度など利用可能な公的支援があれば言及する
 - 回答は「■」で項目を区切り、読みやすく構造化する
 - 参照ナレッジがある場合はそれを優先的に活用する
-- ナレッジに該当がない場合は、一般知識で回答しつつ「担当者による確認をお勧めします」と注記する`;
+- ナレッジに該当がない場合は、一般知識で回答しつつ「${ESCALATION_MARKER}をお勧めします」と注記する`;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -61,7 +66,8 @@ export default async function handler(req, res) {
     });
 
     const draft = completion.choices[0].message.content;
-    return res.status(200).json({ draft });
+    const needsEscalation = draft.includes(ESCALATION_MARKER);
+    return res.status(200).json({ draft, needsEscalation });
   } catch (error) {
     console.error("OpenAI API error:", error);
     return res.status(500).json({ error: "AI回答の生成に失敗しました" });

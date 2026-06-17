@@ -70,6 +70,19 @@ export default async function handler(req, res) {
       if (!id || !finalResponse) {
         return res.status(400).json({ error: "id and finalResponse are required" });
       }
+      if (!/^CASE-[A-Z0-9]{4,64}$/.test(id)) {
+        return res.status(400).json({ error: "id の形式が不正です" });
+      }
+      if (finalResponse.length > 100000 || (fullInquiry || "").length > 50000) {
+        return res.status(400).json({ error: "本文が長すぎます" });
+      }
+
+      // 重複 ID チェック（crypto.randomUUID で衝突確率は極小だが多重 POST 防止）
+      const existing = await readSheet(SHEET);
+      if (existing.some(r => r.id === id)) {
+        return res.status(409).json({ error: "id が重複しています" });
+      }
+
       await appendRow(SHEET, {
         id,
         requesterName: requesterName || "未入力",

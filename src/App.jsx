@@ -76,6 +76,15 @@ export default function App() {
   const [adminAuthed, setAdminAuthed] = useState(() => !!getAdminSecret());
   const [authReload, setAuthReload] = useState(0);
 
+  // ── Escalation flag (サーバ判定)・トースト ──
+  const [needsEscalation, setNeedsEscalation] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = "error") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  }
+
   const viewingCase = viewCaseId
     ? allCases.find(c => c.id === viewCaseId) || lastPublishedCase
     : lastPublishedCase;
@@ -155,13 +164,17 @@ export default function App() {
   async function handleGenerateDraft() {
     setLoading(true);
     try {
-      const text = await generateAIDraft({ inquiry, meta, knowledgeBase });
-      setAiDraft(text);
-      setFinalResponse(text);
-      setEditHistory([{ version: 1, text, editor: "AI", timestamp: new Date().toISOString() }]);
+      const { draft, needsEscalation: serverEscalation } = await generateAIDraft({ inquiry, meta, knowledgeBase });
+      setAiDraft(draft);
+      setFinalResponse(draft);
+      setNeedsEscalation(serverEscalation);
+      setEditHistory([{ version: 1, text: draft, editor: "AI", timestamp: new Date().toISOString() }]);
     } catch (err) {
-      setAiDraft(`回答の生成中にエラーが発生しました。\n\n詳細: ${err.message}\n\nもう一度お試しください。`);
-      setFinalResponse("");
+      handleApiError(err, "AI 生成エラー");
+      if (err?.status !== 401) {
+        showToast(`回答の生成に失敗しました: ${err.message}`);
+        setStep(1);
+      }
     } finally {
       setLoading(false);
     }
@@ -182,6 +195,8 @@ export default function App() {
     } catch (err) {
       handleApiError(err, "案件保存エラー");
       if (err?.status === 401) return;
+      showToast(`案件の保存に失敗しました: ${err.message}`);
+      return;
     }
 
     // UIを更新（シートから再読み込みする代わりにローカル更新）
@@ -215,6 +230,7 @@ export default function App() {
     setEditHistory([]);
     setMeta({ requesterName: "", inquirer: "", org: "", disabilities: [], skill: 3 });
     setSavedToKnowledge(false);
+    setNeedsEscalation(false);
   }
 
   // ── ナレッジ操作 ──
@@ -235,6 +251,7 @@ export default function App() {
       }
     } catch (err) {
       handleApiError(err, "ナレッジ保存エラー");
+      if (err?.status !== 401) showToast(`ナレッジの保存に失敗しました: ${err.message}`);
     }
     setKbForm({ disability: "", topic: "", content: "" });
   }
@@ -248,6 +265,10 @@ export default function App() {
       await deleteKnowledgeFromSheet(id);
     } catch (err) {
       handleApiError(err, "ナレッジ削除エラー");
+      if (err?.status !== 401) {
+        showToast(`ナレッジの削除に失敗しました: ${err.message}`);
+        return;
+      }
     }
     setKnowledgeBase(prev => prev.filter(item => item.id !== id));
     if (kbForm.editId === id) setKbForm({ disability: "", topic: "", content: "" });
@@ -271,11 +292,9 @@ export default function App() {
       setSavedToKnowledge(true);
     } catch (err) {
       handleApiError(err, "ナレッジ登録エラー");
+      if (err?.status !== 401) showToast(`ナレッジ登録に失敗しました: ${err.message}`);
     }
   }
-
-  // ── Escalation ──
-  const needsEscalation = aiDraft.includes("担当者による確認");
 
   // ── Render ──
   return (
@@ -303,7 +322,22 @@ export default function App() {
         <PublicReplyPage viewingCase={viewingCase} />
       ) : !adminAuthed ? (
         <AdminAuthGate onSubmit={handleAuthSubmit} />
-      ) : (
+      ) : null}
+
+      {toast && (
+        <div role="alert" style={{
+          position: "fixed", right: 24, bottom: 24, zIndex: 1000,
+          maxWidth: 360, padding: "12px 16px", borderRadius: 10,
+          background: toast.type === "error" ? "#fef2f2" : "#f0fdf4",
+          border: toast.type === "error" ? "1px solid #fecaca" : "1px solid #bbf7d0",
+          color: toast.type === "error" ? "#991b1b" : "#166534",
+          fontSize: 12, lineHeight: 1.6, boxShadow: "0 4px 20px rgba(0,0,0,.08)",
+        }}>
+          {toast.message}
+        </div>
+      )}
+
+      {!dataLoading && viewMode !== "public" && adminAuthed && (
         <div style={{ maxWidth: 780, margin: "24px auto", padding: "0 16px" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
             <button onClick={() => setAdminMode("workflow")} style={glassTab(adminMode === "workflow")}>相談ワークフロー</button>

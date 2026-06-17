@@ -11,6 +11,8 @@ import { adminHeaders } from "./auth";
 
 /**
  * ナレッジベースから相談内容に関連するエントリを検索する。
+ * `disabilities` が空配列の場合は **全件返す**（属性未確定時の保険）。
+ * 通常フローでは Step1 で 1 つ以上選択しないと Step2 へ進めないため到達しない。
  * 将来的にはベクトル検索 (embedding similarity) に置き換え可能。
  */
 export function searchKnowledge(knowledgeBase, disabilities) {
@@ -25,7 +27,9 @@ export function searchKnowledge(knowledgeBase, disabilities) {
  * @param {string} params.inquiry - 相談内容テキスト
  * @param {Object} params.meta - 相談者メタ情報
  * @param {Array}  params.knowledgeBase - 参照するナレッジベース
- * @returns {Promise<string>} 生成された回答テキスト
+ * @returns {Promise<{draft: string, needsEscalation: boolean}>}
+ *   `draft`: 生成された回答テキスト
+ *   `needsEscalation`: ナレッジ不足によるエスカレーション判定（サーバ側で判定済み）
  */
 export async function generateAIDraft({ inquiry, meta, knowledgeBase }) {
   const relevantKB = searchKnowledge(knowledgeBase, meta.disabilities);
@@ -48,5 +52,5 @@ export async function generateAIDraft({ inquiry, meta, knowledgeBase }) {
   }
 
   const data = await res.json();
-  return data.draft;
+  return { draft: data.draft, needsEscalation: !!data.needsEscalation };
 }

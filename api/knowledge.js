@@ -17,6 +17,9 @@ export default async function handler(req, res) {
       if (!disability || !topic || !content) {
         return res.status(400).json({ error: "disability, topic, content are required" });
       }
+      if (disability.length > 100 || topic.length > 500 || content.length > 50000) {
+        return res.status(400).json({ error: "値が長すぎます" });
+      }
       const newId = id || "KB-" + Date.now().toString(36).toUpperCase();
       await appendRow(SHEET, { id: newId, disability, topic, content });
       return res.status(201).json({ id: newId });
@@ -25,6 +28,9 @@ export default async function handler(req, res) {
     if (req.method === "PUT") {
       const { id, disability, topic, content } = req.body;
       if (!id) return res.status(400).json({ error: "id is required" });
+      if ((disability || "").length > 100 || (topic || "").length > 500 || (content || "").length > 50000) {
+        return res.status(400).json({ error: "値が長すぎます" });
+      }
       const updated = await updateRow(SHEET, id, { disability, topic, content });
       return res.status(updated ? 200 : 404).json({ ok: updated });
     }

@@ -570,8 +570,8 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{
-                  background: savedToKnowledge ? "#f0fdf4" : "#eff6ff", borderRadius: 10, padding: 20,
-                  border: savedToKnowledge ? "1px solid #bbf7d0" : "1px solid #bfdbfe", marginBottom: 20
+                  background: savedToKnowledge ? "#f0fdf4" : "#fffbeb", borderRadius: 10, padding: 20,
+                  border: savedToKnowledge ? "1px solid #bbf7d0" : "1px solid #fcd34d", marginBottom: 20
                 }}>
                   {savedToKnowledge ? (
                     <div style={{ fontSize: 12, color: "#166534", fontWeight: 600 }}>
@@ -579,14 +579,20 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      <div style={{ fontSize: 12, color: "#1e40af", fontWeight: 600, marginBottom: 8 }}>
-                        この回答を今後のナレッジとして登録しますか？
+                      <div style={{ fontSize: 13, color: "#92400e", fontWeight: 700, marginBottom: 10 }}>
+                        ⚠️ ナレッジ登録は新しい知識のみに限定してください
                       </div>
-                      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
-                        登録すると、類似の相談でこの回答がAI生成の参考になります。
+                      <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.7, marginBottom: 10 }}>
+                        この機能は、<strong>エスカレーションの結果として新たに獲得した知識（既存ナレッジに無い新しいタイプの回答）</strong>を蓄積するためのものです。
+                      </div>
+                      <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.7, marginBottom: 12 }}>
+                        既存ナレッジで対応できた通常の相談回答や、特定のケースに固有の回答、汎用性に欠ける内容を登録すると、AI回答全体の精度が低下します。<strong>登録の必要性を慎重に判断してください。</strong>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#92400e", fontWeight: 600, marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 6 }}>
+                        登録の目安：エスカレーション通知が表示され、その内容を踏まえて新しい知見を回答に反映した場合
                       </div>
                       <button onClick={handleSaveToKnowledge} style={glassPrimary}>
-                        ナレッジに登録する
+                        新しいナレッジとして登録する
                       </button>
                     </>
                   )}

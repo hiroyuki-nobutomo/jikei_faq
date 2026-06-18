@@ -48,6 +48,17 @@ function AdminAuthGate({ onSubmit }) {
   );
 }
 
+// 全ステップ共通の戻る/進むボタン配置（左=戻る、右=進む）
+const navRowStyle = {
+  marginTop: 24,
+  paddingTop: 18,
+  borderTop: "1px solid #f1f5f9",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+};
+
 export default function App() {
   // ── Workflow state ──
   const [step, setStep] = useState(0);
@@ -221,6 +232,20 @@ export default function App() {
     setStep(4);
   }
 
+  // ── ステップ移動（戻る方向のみ。StepIndicatorから呼ばれる） ──
+  function goToStep(target) {
+    if (target === step || step === 4) return;
+    if (target > step) return; // 前進はナビボタン経由でのみ
+    // Step 2以降からStep 0/1へ戻る場合、AI案が再生成で上書きされる可能性を警告
+    if (step >= 2 && target <= 1 && aiDraft) {
+      const ok = window.confirm(
+        "前のステップに戻ります。\n属性等を変更してAI回答を再生成すると、現在のAI案と修正内容は上書きされます。\nよろしいですか？"
+      );
+      if (!ok) return;
+    }
+    setStep(target);
+  }
+
   // ── ワークフローリセット ──
   function handleNewInquiry() {
     setStep(0);
@@ -346,7 +371,7 @@ export default function App() {
             <button onClick={handleLogout} style={{ ...backBtnStyle, marginLeft: "auto" }}>ログアウト</button>
           </div>
 
-          {adminMode === "workflow" && <StepIndicator current={step} />}
+          {adminMode === "workflow" && <StepIndicator current={step} onStepClick={goToStep} />}
 
           <div style={{
             background: "#fff", borderRadius: 14, padding: "28px 32px",
@@ -395,8 +420,11 @@ export default function App() {
                     resize: "vertical", boxSizing: "border-box", fontFamily: "inherit"
                   }}
                 />
-                <div style={{ marginTop: 20, textAlign: "right" }}>
-                  <button disabled={!inquiry.trim()} onClick={() => setStep(1)} style={inquiry.trim() ? glassPrimary : glassPrimaryDisabled}>次へ：属性設定 →</button>
+                <div style={navRowStyle}>
+                  <div />
+                  <button disabled={!inquiry.trim()} onClick={() => setStep(1)} style={inquiry.trim() ? glassPrimary : glassPrimaryDisabled}>
+                    次へ：属性設定 →
+                  </button>
                 </div>
               </div>
             )}
@@ -455,11 +483,13 @@ export default function App() {
                     <span>未経験</span><span>応用可能</span>
                   </div>
                 </div>
-                <div style={{ marginTop: 24, display: "flex", justifyContent: "space-between" }}>
-                  <button onClick={() => setStep(0)} style={backBtnStyle}>← 戻る</button>
+                <div style={navRowStyle}>
+                  <button onClick={() => goToStep(0)} style={backBtnStyle}>← 戻る</button>
                   <button disabled={!meta.inquirer || !meta.org || meta.disabilities.length === 0}
                     onClick={() => { setStep(2); handleGenerateDraft(); }}
-                    style={(meta.inquirer && meta.org && meta.disabilities.length > 0) ? glassPrimary : glassPrimaryDisabled}>次へ：AI回答生成 →</button>
+                    style={(meta.inquirer && meta.org && meta.disabilities.length > 0) ? glassPrimary : glassPrimaryDisabled}>
+                    次へ：AI回答生成 →
+                  </button>
                 </div>
               </div>
             )}
@@ -502,8 +532,8 @@ export default function App() {
                       border: "1px solid #e2e8f0", fontSize: 13, lineHeight: 1.9,
                       whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto"
                     }}>{aiDraft}</div>
-                    <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between" }}>
-                      <button onClick={() => setStep(1)} style={backBtnStyle}>← 属性を修正</button>
+                    <div style={navRowStyle}>
+                      <button onClick={() => goToStep(1)} style={backBtnStyle}>← 戻る</button>
                       <button onClick={() => setStep(3)} style={glassPrimary}>次へ：修正・確定 →</button>
                     </div>
                   </>
@@ -534,8 +564,8 @@ export default function App() {
                     &#x270F;&#xFE0F; AI原案から修正されています（修正履歴に記録されます）
                   </div>
                 )}
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between" }}>
-                  <button onClick={() => setStep(2)} style={backBtnStyle}>← AI案を再確認</button>
+                <div style={navRowStyle}>
+                  <button onClick={() => goToStep(2)} style={backBtnStyle}>← 戻る</button>
                   <button onClick={handleConfirm} style={glassSuccess}>✓ 確定して公開</button>
                 </div>
               </div>
@@ -616,7 +646,10 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <button onClick={handleNewInquiry} style={glassPrimary}>+ 新しい相談を受付</button>
+                <div style={navRowStyle}>
+                  <div />
+                  <button onClick={handleNewInquiry} style={glassPrimary}>+ 新しい相談を受付</button>
+                </div>
               </div>
             )}
           </div>
